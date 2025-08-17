@@ -76,7 +76,7 @@ dependencies {
     implementation 'com.karumi:dexter:6.2.3'
 
     // WorkManager pour les tâches programmées
-    implementation 'androidx.work:work-runtime-ktx:2.9.0'
+    implementation 'androidx.work:work-runtime-ktx:2.10.3'
 
     // Security pour chiffrement des données sensibles
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
