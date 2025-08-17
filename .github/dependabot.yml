@@ -1,19 +1,67 @@
 version: 2
 updates:
-  # 1. Surveille les dépendances Gradle (Android, libs Java/Kotlin, etc.)
+  # Configuration pour Gradle/Android
   - package-ecosystem: "gradle"
-    directory: "/"          # surveille les fichiers gradle à la racine
+    directory: "/"
     schedule:
-      interval: "weekly"    # vérifie une fois par semaine
-    open-pull-requests-limit: 5
-    reviewers:
-      - "@brubbs77" # optionnel : t'assigne directement comme reviewer
-
-  # 2. Surveille aussi les GitHub Actions (workflows CI/CD)
+      interval: "daily"
+      time: "04:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 10
+    # Grouper les mises à jour mineures ensemble
+    groups:
+      android-dependencies:
+        patterns:
+          - "androidx.*"
+          - "com.google.android.material*"
+        update-types:
+          - "minor"
+          - "patch"
+      kotlin-dependencies:
+        patterns:
+          - "org.jetbrains.kotlin*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Labels automatiques pour les PRs
+    labels:
+      - "dependencies"
+      - "android"
+      - "automated"
+    # Commit message personnalisé
+    commit-message:
+      prefix: "⬆️"
+      prefix-development: "⬆️ dev:"
+      include: "scope"
+    # Auto-merge pour les patchs
+    allow:
+      - dependency-type: "all"
+    ignore:
+      # Ignorer les versions alpha/beta
+      - dependency-name: "*"
+        update-types: ["version-update:semver-prerelease"]
+        
+  # Configuration pour GitHub Actions
   - package-ecosystem: "github-actions"
-    directory: "/"          # surveille le dossier .github/workflows/
+    directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
-    reviewers:
-      - "@brubbs77"
+      day: "monday"
+      time: "05:00"
+      timezone: "Europe/Paris"
+    labels:
+      - "ci/cd"
+      - "automated"
+    commit-message:
+      prefix: "🔧"
+      
+  # Configuration pour Gradle Wrapper
+  - package-ecosystem: "gradle"
+    directory: "/gradle/wrapper"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "build-tools"
+      - "automated"
+    commit-message:
+      prefix: "🔨"
