@@ -1,0 +1,94 @@
+name: 🔒 Security Monitor
+
+on:
+  schedule:
+    # Scan quotidien à 9h
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  security-scan:
+    name: 🔍 Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: ☕ Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: 🔑 Make gradlew executable
+      run: chmod +x gradlew
+      
+    - name: 📊 Check for outdated dependencies
+      id: deps_check
+      run: |
+        ./gradlew dependencyUpdates -Drevision=release > deps_report.txt || true
+        
+        # Compter les dépendances obsolètes
+        OUTDATED=$(grep -c "outdated" deps_report.txt || echo "0")
+        echo "outdated_count=$OUTDATED" >> $GITHUB_OUTPUT
+        
+        # Extraire les infos importantes
+        echo "## 📦 Dependency Report" >> $GITHUB_STEP_SUMMARY
+        echo "Found **$OUTDATED** outdated dependencies" >> $GITHUB_STEP_SUMMARY
+        
+        # Afficher les dépendances critiques Android
+        echo "### Android Dependencies Status:" >> $GITHUB_STEP_SUMMARY
+        grep -E "androidx|com.google.android" deps_report.txt >> $GITHUB_STEP_SUMMARY || true
+        
+    - name: 🛡️ Security vulnerabilities check
+      run: |
+        echo "## 🔒 Security Check" >> $GITHUB_STEP_SUMMARY
+        
+        # Vérifier les versions minimales de sécurité
+        COMPILE_SDK=$(grep "compileSdk" app/build.gradle | grep -o "[0-9]*")
+        TARGET_SDK=$(grep "targetSdk" app/build.gradle | grep -o "[0-9]*" | head -1)
+        MIN_SDK=$(grep "minSdk" app/build.gradle | grep -o "[0-9]*")
+        
+        echo "- **Compile SDK**: $COMPILE_SDK (Latest: 35)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Target SDK**: $TARGET_SDK (Required: 34+)" >> $GITHUB_STEP_SUMMARY  
+        echo "- **Min SDK**: $MIN_SDK" >> $GITHUB_STEP_SUMMARY
+        
+        # Alertes si versions trop anciennes
+        if [ "$TARGET_SDK" -lt "34" ]; then
+          echo "⚠️ **WARNING**: Target SDK should be 34 or higher for Google Play" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: 🔍 Check Kotlin version
+      run: |
+        KOTLIN_VERSION=$(grep "org.jetbrains.kotlin" build.gradle | grep -o "[0-9.]*")
+        echo "### Kotlin Version: $KOTLIN_VERSION" >> $GITHUB_STEP_SUMMARY
+        
+    - name: 📱 List critical Android dependencies
+      run: |
+        echo "### Critical Dependencies:" >> $GITHUB_STEP_SUMMARY
+        ./gradlew :app:dependencies --configuration releaseRuntimeClasspath | grep -E "androidx.core|material|androidx.appcompat" | head -10 >> $GITHUB_STEP_SUMMARY || true
+        
+    - name: 🚨 Create issue if critical updates needed
+      if: steps.deps_check.outputs.outdated_count > 5
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const issue = await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '🔒 Security: Multiple outdated dependencies detected',
+            body: `## ⚠️ Dependency Update Required
+            
+            The security scan found **${{ steps.deps_check.outputs.outdated_count }}** outdated dependencies.
+            
+            ### Action Required:
+            - Review Dependabot PRs
+            - Update critical security patches
+            - Check the [Actions summary](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            This issue was automatically created by the security monitor.`,
+            labels: ['security', 'dependencies', 'automated']
+          })
