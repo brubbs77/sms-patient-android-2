@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "gestionsmspatient"
+rootProject.name = "sms-patient-android-2"
 include ':app'
