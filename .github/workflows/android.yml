@@ -1,16 +1,12 @@
-name: Android Build
+name: Build Android APK
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 jobs:
   build:
-    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
@@ -18,7 +14,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Installer JDK (Java 17 recommandé pour Android Gradle Plugin 8.x)
+      # 2️⃣ Installer JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
@@ -29,12 +25,12 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      # 4️⃣ Build APK
-      - name: Build Debug APK
+      # 4️⃣ Build APK Debug
+      - name: Build APK
         run: ./gradlew assembleDebug --no-daemon
 
-      # 5️⃣ Uploader l'APK en tant qu'artifact
-      - name: Upload APK
+      # 5️⃣ Uploader l'APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
